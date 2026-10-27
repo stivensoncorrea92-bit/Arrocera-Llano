@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Analizador estadístico de procesos · Llano Dorado</title>
+<style>
+:root{--bg:#f6f4ee;--sf:#fff;--tx:#23290f;--mu:#667052;--ac:#b8860b;--ac2:#2f5d3a;--bd:#d9d4c2;--rd:#b3261e;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171a10;--sf:#222616;--tx:#eef0e0;--mu:#a3ab8c;--ac:#e0b43a;--ac2:#7fbf8d;--bd:#3a4026;--rd:#ff8a80;color-scheme:dark}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 Georgia,"Times New Roman",serif}
+header{background:var(--ac2);color:#fff;padding:18px 20px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.logo{font:800 22px/1 "Trebuchet MS",sans-serif;background:var(--ac);color:#23290f;padding:10px 12px;border-radius:4px;letter-spacing:.5px}
+header h1{margin:0;font-size:20px;font-weight:600}header p{margin:0;opacity:.85;font-size:14px}
+main{max-width:1000px;margin:0 auto;padding:16px}
+section{background:var(--sf);border:1px solid var(--bd);border-radius:6px;padding:16px;margin-bottom:16px}
+h2{margin:0 0 10px;font:700 18px "Trebuchet MS",sans-serif}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+label{font:13px "Trebuchet MS",sans-serif;color:var(--mu);display:block}
+input,select,textarea{width:100%;font:15px Georgia,serif;padding:7px;border:1px solid var(--bd);border-radius:4px;background:var(--bg);color:var(--tx)}
+textarea{min-height:110px}button{font:600 14px "Trebuchet MS",sans-serif;padding:8px 14px;border:0;border-radius:4px;background:var(--ac2);color:#fff;cursor:pointer;margin:6px 6px 0 0}
+button.s{background:var(--ac);color:#23290f}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--ac)}
+.k{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.k div{border-left:4px solid var(--ac);padding:4px 10px;background:var(--bg)}.k b{display:block;font:700 20px "Trebuchet MS",sans-serif}.k span{font-size:13px;color:var(--mu)}
+.w{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid var(--bd);padding:4px 8px;text-align:right}th{background:var(--bg);font-family:"Trebuchet MS",sans-serif}
+svg{width:100%;height:auto;display:block}svg text{fill:var(--tx);font:11px "Trebuchet MS",sans-serif}
+.ok{color:var(--ac2)}.bad{color:var(--rd)}#inf li{margin-bottom:8px}.note{font-size:13px;color:var(--mu)}
+@media print{header button,.np{display:none}body{background:#fff}}
+</style>
+</head>
+<body>
+<header>
+<div class="logo" id="logo">LLANO DORADO</div>
+<div><h1 id="ttl">Analizador estadístico de procesos</h1><p>Arrocera Llano Dorado S.A.S. · Alimentos</p></div>
+</header>
+<main>
+<section class="np">
+<h2>Datos de la empresa y del proceso</h2>
+<div class="g">
+<div><label>Empresa<input id="emp" value="Arrocera Llano Dorado S.A.S."></label></div>
+<div><label>Variable<input id="var" value="Bolsas empacadas por hora"></label></div>
+<div><label>Unidad<input id="uni" value="bolsas/h"></label></div>
+<div><label>¿Qué es mejor?<select id="mej"><option value="may">Mayor valor</option><option value="men">Menor valor</option></select></label></div>
+<div><label>Límite de especificación (mínimo)<input id="lim" type="number" value="450"></label></div>
+<div><label>Meta<input id="met" type="number" value="520"></label></div>
+</div>
+<label style="margin-top:10px">Datos en el orden en que se tomaron (uno por línea)
+<textarea id="dat"></textarea></label>
+<p class="note" id="aviso">Datos de ejemplo sintéticos para probar la app. Carga tu CSV real con el botón.</p>
+<button id="calc">Calcular</button>
+<button class="s" onclick="document.getElementById('fil').click()">Cargar archivo…</button>
+<input type="file" id="fil" accept=".csv,.txt" hidden>
+<button class="s" id="csv">Descargar tabla (CSV)</button>
+<button class="s" onclick="window.print()">Guardar informe como PDF</button>
+</section>
+
+<section><h2>Medidas principales</h2><div class="k" id="kp"></div></section>
+<section><h2>Distribución de frecuencias</h2><p class="note" id="cls"></p><div class="w"><table id="tf"></table></div></section>
+<section><h2>Histograma y ojiva</h2><div id="hist"></div><div id="oji"></div></section>
+<section><h2>Carta de control (orden de ingreso)</h2><div id="ctl"></div>
+<p class="note">Límites en la media ± 3 desviaciones típicas. Supuestos que simplifica: datos independientes y distribución aproximadamente normal; usa la desviación de toda la muestra (no la variación entre subgrupos) y no aplica reglas de tendencias. Un punto fuera del límite sugiere causa especial, por ejemplo una parada de línea.</p></section>
+<section class="np"><h2>Diagrama de Pareto</h2>
+<label>Pega pares «causa;frecuencia», uno por línea
+<textarea id="par">Cambio de bobina;14
+Falla de selladora;9
+Falta de materia prima;6
+Ajuste de pesaje;4
+Limpieza no programada;2
+Otras;1</textarea></label>
+<button id="bp">Dibujar Pareto</button><div id="pareto"></div></section>
+<section><h2>Informe y alternativas de mejora sugeridas</h2><ul id="inf"></ul></section>
+<section><h2>Aporte del grupo</h2>
+<label>Alternativa 1: ¿qué proponen?, ¿qué dato la respalda? y ¿cómo sabrán si funcionó?<textarea></textarea></label>
+<label style="margin-top:8px">Alternativa 2<textarea></textarea></label>
+<label style="margin-top:8px">Declaración de uso de IA (herramienta y prompts)<textarea></textarea></label></section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const DEMO=[512,520,508,531,497,525,515,518,503,527,510,522,300,509,516,524,498,530,519,512,505,521,230,514,526,507,517,523,511,529,502,520,513,528,420,516,509,524,518,506];
+$('dat').value=DEMO.join('\n');
+const f=(x,d=2)=>Number(x).toLocaleString('es-CO',{maximumFractionDigits:d,minimumFractionDigits:d});
+
+/* ===== Funciones de cálculo ===== */
+function parse(t){
+  const L=t.split(/\r?\n/).filter(s=>s.trim()),out=[];
+  const num=s=>{s=s.replace(',','.');return s!==''&&isFinite(s)?parseFloat(s):null};
+  for(const l of L){
+    let tk=l.trim().split(/[;\t ]+/);
+    if(tk.length===1&&l.includes(','))tk=l.split(',');
+    const v=tk.map(num).filter(x=>x!==null);
+    if(!v.length)continue;
+    if(L.length===1)out.push(...v);else out.push(v[v.length-1]);
+  }
+  return out;
+}
+const mean=a=>a.reduce((s,x)=>s+x,0)/a.length;
+function quant(s,p){const i=(s.length-1)*p,lo=Math.floor(i);return s[lo]+(s[Math.ceil(i)]-s[lo])*(i-lo)}
+function mode(a){const m={};a.forEach(x=>m[x]=(m[x]||0)+1);const mx=Math.max(...Object.values(m));
+  const r=Object.keys(m).filter(k=>m[k]===mx).map(Number);return mx===1?null:r.sort((a,b)=>a-b)}
+function sd(a){const m=mean(a);return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1))}
+function agrupar(a){
+  const n=a.length,mn=Math.min(...a),mx=Math.max(...a);
+  const k=Math.ceil(1+3.322*Math.log10(n));
+  let A=(mx-mn)/k;const ent=a.every(Number.isInteger);
+  A=ent?Math.max(1,Math.ceil(A)):Math.ceil(A*100)/100;
+  const cl=[];let Fi=0;
+  for(let i=0;i<k;i++){const li=mn+i*A,ls=li+A;
+    const fi=a.filter(x=>x>=li&&(i===k-1?x<=ls:x<ls)).length;Fi+=fi;
+    cl.push({li,ls,xi:(li+ls)/2,fi,Fi,hi:fi/n,Hi:Fi/n})}
+  return{k,A,cl,n};
+}
+function gmed(g){const h=g.n/2,c=g.cl.find(c=>c.Fi>=h),p=g.cl[g.cl.indexOf(c)-1];
+  return c.li+((h-(p?p.Fi:0))/c.fi)*g.A}
+function gmod(g){let i=0;g.cl.forEach((c,j)=>{if(c.fi>g.cl[i].fi)i=j});
+  const c=g.cl[i],a=i?g.cl[i-1].fi:0,b=i<g.cl.length-1?g.cl[i+1].fi:0;
+  const d=(c.fi-a)+(c.fi-b);return d?c.li+g.A*(c.fi-a)/d:c.xi}
+
+/* ===== Gráficos SVG ===== */
+function bars(vals,labels,title,xl){
+  const W=640,H=250,m=40,bw=(W-2*m)/vals.length,mx=Math.max(...vals);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}"><text x="${W/2}" y="14" text-anchor="middle" font-weight="700">${title}</text>`;
+  vals.forEach((v,i)=>{const h=(H-2*m)*v/mx,x=m+i*bw;
+    s+=`<rect x="${x+1}" y="${H-m-h}" width="${bw-2}" height="${h}" fill="var(--ac2)"/><text x="${x+bw/2}" y="${H-m-h-4}" text-anchor="middle">${v}</text><text x="${x+bw/2}" y="${H-m+13}" text-anchor="middle">${labels[i]}</text>`});
+  return s+`<line x1="${m}" y1="${H-m}" x2="${W-m}" y2="${H-m}" stroke="var(--mu)"/><text x="${W/2}" y="${H-6}" text-anchor="middle">${xl}</text></svg>`;
+}
+function line(pts,xs,title,hl){
+  const W=640,H=250,m=44;
+  const all=pts.concat(hl.map(h=>h.y));let mn=Math.min(...all),mx=Math.max(...all);const pd=(mx-mn)*.08||1;mn-=pd;mx+=pd;
+  const X=i=>m+(W-2*m)*(xs.length>1?i/(xs.length-1):0),Y=v=>H-m-(H-2*m)*(v-mn)/(mx-mn);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}"><text x="${W/2}" y="14" text-anchor="middle" font-weight="700">${title}</text>`;
+  hl.forEach(h=>{s+=`<line x1="${m}" x2="${W-m}" y1="${Y(h.y)}" y2="${Y(h.y)}" stroke="${h.c}" stroke-dasharray="${h.d||''}"/><text x="${W-m}" y="${Y(h.y)-3}" text-anchor="end" fill="${h.c}" style="fill:${h.c}">${h.t} ${f(h.y,1)}</text>`});
+  s+=`<polyline fill="none" stroke="var(--ac2)" stroke-width="1.6" points="${pts.map((v,i)=>X(i)+','+Y(v)).join(' ')}"/>`;
+  pts.forEach((v,i)=>{const o=hl.some(h=>h.out&&((h.dir<0&&v<h.y)||(h.dir>0&&v>h.y)));s+=`<circle cx="${X(i)}" cy="${Y(v)}" r="${o?5:2.5}" fill="${o?'var(--rd)':'var(--ac2)'}"/>`});
+  return s+'</svg>';
+}
+
+/* ===== Aplicación ===== */
+let tabla=[];
+function calcular(){
+  const a=parse($('dat').value);
+  if(a.length<5){$('kp').innerHTML='<div><b>Faltan datos</b><span>Escribe al menos 5 valores numéricos, uno por línea.</span></div>';return}
+  const u=$('uni').value,n=a.length,s=[...a].sort((x,y)=>x-y);
+  const m=mean(a),med=quant(s,.5),mo=mode(a),d=sd(a),cv=d/m*100,lim=parseFloat($('lim').value),meta=parseFloat($('met').value);
+  const g=agrupar(a),gm=g.cl.reduce((t,c)=>t+c.fi*c.xi,0)/n,gmd=gmed(g),gmo=gmod(g);
+  $('ttl').textContent='Analizador de '+$('var').value.toLowerCase();
+  $('logo').textContent=$('emp').value.split(' ').slice(0,2).join(' ').toUpperCase();
+  const K=[['Media',f(m,3)+' '+u],['Mediana',f(med,3)+' '+u],['Moda',mo?mo.join(', '):'sin moda'],['Desv. típica',f(d,3)],['CV',f(cv)+' %'],['n',n],['Mín / Máx',f(s[0],0)+' / '+f(s[n-1],0)],['Media agrupada',f(gm,1)],['Mediana agrupada',f(gmd,1)],['Moda agrupada',f(gmo,1)]];
+  $('kp').innerHTML=K.map(k=>`<div><b>${k[1]}</b><span>${k[0]}</span></div>`).join('');
+  $('cls').textContent=`Clases (Sturges): ${g.k}. Amplitud A = ${g.A}.`;
+  $('tf').innerHTML='<tr><th>Clase</th><th>Marca xi</th><th>fi</th><th>Fi</th><th>hi %</th><th>Hi %</th></tr>'+g.cl.map(c=>`<tr><td>${f(c.li,1)} – ${f(c.ls,1)}</td><td>${f(c.xi,1)}</td><td>${c.fi}</td><td>${c.Fi}</td><td>${f(c.hi*100,1)}</td><td>${f(c.Hi*100,1)}</td></tr>`).join('');
+  tabla=[['Clase inferior','Clase superior','Marca','fi','Fi','hi','Hi'],...g.cl.map(c=>[c.li,c.ls,c.xi,c.fi,c.Fi,c.hi.toFixed(4),c.Hi.toFixed(4)])];
+  $('hist').innerHTML=bars(g.cl.map(c=>c.fi),g.cl.map(c=>f(c.xi,0)),'Histograma de frecuencias','Marca de clase ('+u+')');
+  $('oji').innerHTML=line(g.cl.map(c=>c.Hi*100),g.cl.map(c=>c.ls),'Ojiva (frecuencia relativa acumulada %)',[{y:50,t:'50 %',c:'var(--ac)',d:'4'}]);
+  $('ctl').innerHTML=line(a,a,'Carta de control: '+$('var').value,[{y:m+3*d,t:'LSC',c:'var(--rd)',d:'5',out:1,dir:1},{y:m,t:'Media',c:'var(--ac)'},{y:m-3*d,t:'LIC',c:'var(--rd)',d:'5',out:1,dir:-1},...(isNaN(lim)?[]:[{y:lim,t:'Mínimo',c:'var(--mu)',d:'2'}])]);
+  informe({a,s,n,m,med,d,cv,u,lim,meta,mej:$('mej').value});
+}
+function informe(o){
+  const{a,s,n,m,med,d,cv,u,lim,meta,mej}=o,L=[];
+  const mala=x=>mej==='may'?x<lim:x>lim,nb=a.filter(mala).length;
+  const q1=quant(s,.25),q3=quant(s,.75),ri=q3-q1,at=a.filter(x=>x<q1-1.5*ri||x>q3+1.5*ri);
+  const dif=Math.abs(med-m)/m*100;
+  /* NUEVO I3: regla media vs mediana */
+  if(dif>10)L.push(`<span class="bad">Advertencia:</span> la mediana (${f(med,1)}) difiere ${f(dif,1)} % de la media (${f(m,1)}). El promedio no representa bien al proceso; revisa los datos extremos.`);
+  else L.push(`<span class="ok">Media y mediana similares</span> (diferencia ${f(dif,1)} %): el promedio representa razonablemente al proceso.`);
+  if(!isNaN(lim))L.push(`${nb} de ${n} registros (${f(nb/n*100,1)} %) incumplen el límite de ${lim} ${u}.`);
+  if(!isNaN(meta)){const c=a.filter(x=>mej==='may'?x>=meta:x<=meta).length;L.push(`${c} de ${n} registros (${f(c/n*100,1)} %) alcanzan la meta de ${meta} ${u}; la media está a ${f(Math.abs(meta-m),1)} ${u} de la meta.`)}
+  L.push(at.length?`Datos atípicos (regla de Tukey, fuera de ${f(q1-1.5*ri,1)} – ${f(q3+1.5*ri,1)}): ${at.map(x=>f(x,0)).join(', ')}. En empaque suelen corresponder a paradas de línea.`:'No hay datos atípicos por la regla de Tukey.');
+  L.push(`Variabilidad: CV = ${f(cv)} % (${cv<10?'baja':cv<20?'moderada':'alta'}).`);
+  L.push('<b>Alternativa sugerida:</b> investigar las horas atípicas bajas contra el registro de paradas (cambio de bobina, selladora, materia prima) y estandarizar el protocolo de arranque tras cada parada.');
+  L.push('<b>Cómo medirlo:</b> repetir el muestreo de 40 horas y comparar el % bajo el mínimo y la desviación típica.');
+  L.push('<i class="note">Estos resultados describen una muestra; generalizar a toda la producción requiere más datos y estadística inferencial.</i>');
+  $('inf').innerHTML=L.map(x=>'<li>'+x+'</li>').join('');
+}
+/* NUEVO I1: Pareto */
+function pareto(){
+  const r=$('par').value.split(/\r?\n/).map(l=>l.split(';')).filter(p=>p.length>1&&isFinite(p[1])).map(p=>[p[0].trim(),+p[1]]).sort((a,b)=>b[1]-a[1]);
+  if(!r.length){$('pareto').innerHTML='<p class="bad">Usa el formato causa;frecuencia.</p>';return}
+  const tot=r.reduce((t,x)=>t+x[1],0),W=640,H=270,m=44,bw=(W-2*m)/r.length,mx=r[0][1];let ac=0,pts=[];
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Pareto"><text x="${W/2}" y="14" text-anchor="middle" font-weight="700">Pareto de causas de parada</text>`;
+  r.forEach((x,i)=>{const h=(H-2*m)*x[1]/mx,X=m+i*bw;ac+=x[1];pts.push([X+bw/2,H-m-(H-2*m)*ac/tot]);
+    s+=`<rect x="${X+2}" y="${H-m-h}" width="${bw-4}" height="${h}" fill="var(--ac2)"/><text x="${X+bw/2}" y="${H-m+13}" text-anchor="middle">${x[0].slice(0,14)}</text><text x="${X+bw/2}" y="${H-m-h-3}" text-anchor="middle">${x[1]}</text>`});
+  s+=`<polyline fill="none" stroke="var(--ac)" stroke-width="2" points="${pts.map(p=>p.join(',')).join(' ')}"/>`;
+  pts.forEach((p,i)=>s+=`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="var(--ac)"/>`);
+  $('pareto').innerHTML=s+`<text x="${W-m}" y="${m-6}" text-anchor="end">100 % = ${tot}</text></svg>`;
+}
+$('calc').onclick=calcular;$('bp').onclick=pareto;
+$('fil').onchange=e=>{const fl=e.target.files[0];if(!fl)return;const r=new FileReader();r.onload=()=>{$('dat').value=r.result;$('aviso').textContent='Archivo cargado: '+fl.name;calcular()};r.readAsText(fl)};
+/* NUEVO B2: descarga CSV */
+$('csv').onclick=()=>{const b=new Blob(['\ufeff'+tabla.map(r=>r.join(';')).join('\n')],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='tabla_frecuencias.csv';a.click()};
+calcular();pareto();
+</script>
+</body>
+</html>
